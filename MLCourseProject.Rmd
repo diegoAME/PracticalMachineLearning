@@ -1,0 +1,83 @@
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+### **Background**
+
+Using devices such as Jawbone Up, Nike FuelBand, and Fitbit it is now possible to collect a large amount of data about personal activity relatively inexpensively. These type of devices are part of the quantified self movement – a group of enthusiasts who take measurements about themselves regularly to improve their health, to find patterns in their behavior, or because they are tech geeks. One thing that people regularly do is quantify how much of a particular activity they do, but they rarely quantify how well they do it. In this project, your goal will be to use data from accelerometers on the belt, forearm, arm, and dumbell of 6 participants. They were asked to perform barbell lifts correctly and incorrectly in 5 different ways.
+
+```{r echo=FALSE, message=FALSE}
+library(caret)
+library(randomForest)
+library(rpart)
+library(RColorBrewer)
+library(rattle)
+set.seed(2020)
+```
+
+### **Downloading and loading the data into R**
+
+First, the data is downloaded from the web and stored in a R dataset:
+```{r cache=TRUE}
+trainUrl <- "http://d396qusza40orc.cloudfront.net/predmachlearn/pml-training.csv"
+testUrl <- "http://d396qusza40orc.cloudfront.net/predmachlearn/pml-testing.csv"
+trainingData <- read.csv(url(trainUrl), na.strings=c("NA","#DIV/0!",""))
+testingData <- read.csv(url(testUrl), na.strings=c("NA","#DIV/0!",""))
+```
+
+### **Cleaning the datasets**
+
+Once the data is stored, unnecesary variables should be ommited, such as *name, timestamp, window and X* related variables, as well as the null values:
+```{r }
+
+trainingSet<-trainingData[,colSums(is.na(trainingData)) == 0]
+testingSet <-testingData[,colSums(is.na(testingData)) == 0]
+
+unnecesaryVariables <- grep("name|timestamp|window|X", colnames(trainingSet), value=F) 
+trainingTidy <- trainingSet[,-unnecesaryVariables]
+
+```
+
+### **Splitting the training Data set (for cross validation)**
+In order to perform a cross validation, the training set is split in 2 parts: Training(70%) and Testing (30%)
+```{r }
+index <- createDataPartition(y=trainingTidy$classe, p=0.7, list=FALSE)
+myTraining <- trainingTidy[index, ] 
+myTesting <- trainingTidy[-index, ]
+myTraining$classe <- as.factor(myTraining$classe)
+myTesting$classe <- as.factor(myTesting$classe)
+
+```
+
+### **Random Forest**
+
+The first machine learning algorithm to be tested is Random Forest, using the class as the outcome and all the variables remaining as the predictors:
+
+```{r }
+rfModel <- randomForest(classe ~ . , data=myTraining, method="class")
+rfPred <- predict(rfModel, myTesting, type = "class")
+confusionMatrix(rfPred, myTesting$classe)
+
+```
+
+### **Decision Trees**
+
+The second machine learning algorithm to be tested is Decision Trees, using the class as the outcome and all the variables remaining as the predictors:
+
+```{r }
+dtModel <- rpart(classe ~ ., data=myTraining, method="class")
+dtPred <- predict(dtModel, myTesting, type = "class")
+confusionMatrix(dtPred, myTesting$classe)
+```
+
+Analysing the information given by the confussion Matrix, it is stated that the accuracy is sufficient to acknowledge the Random Forest model as more reliable, compared to the decision trees.
+
+### **Using original Testing Data**
+
+Using the fitted model from the Random Forest algorithm, now it is going to be tested for the original test dataset (20 sets):
+
+```{r }
+testPred <- predict(rfModel, testingSet, type="class")
+testPred
+```
